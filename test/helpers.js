@@ -4,10 +4,10 @@ const { createApp } = require('../src/server');
 const { openDatabase, transaction } = require('../src/db');
 const { seed } = require('../scripts/seed');
 
-async function startSeeded() {
+async function startSeeded(options = {}) {
   const db = openDatabase(':memory:');
   transaction(db, () => seed(db));
-  const app = createApp({ db, baseUrl: 'http://dash.test' });
+  const app = createApp({ db, baseUrl: 'http://dash.test', dataSourcesFile: null, ...options });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.server.address().port}`;
   return { app, db, base, client: (email) => client(base, email) };

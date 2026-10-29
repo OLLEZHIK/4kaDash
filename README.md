@@ -73,6 +73,35 @@ POST /api/dashboards/:id/refreshed         {"at": "2026-10-01T06:00:00Z"}
 
 The response to a value submission lists any warnings it raised.
 
+## Data gateway (reports straight from the company database)
+
+The 4kaDash page can load report data from a company database instead of an attached file.
+The browser never connects to the database itself: it asks this server, which acts as a gateway.
+
+```
+4kaDash page ──HTTPS + access key──▶ /api/data/... (this server) ──read-only──▶ PostgreSQL / MS SQL / MySQL / SQLite / CSV
+```
+
+- **Only approved datasets.** The data team defines each dataset (its SQL) in `config/data-sources.json`.
+  The page can only choose a dataset and a period (`from`/`to`, bound as parameters), never send SQL.
+- **No secrets in the config.** Connection strings come from environment variables (`"connection": {"env": "DWH_URL"}`).
+- **Personal data stays out.** Columns listed in `piiColumns`, columns whose names look personal
+  (e-mail, phone, rodné číslo, IBAN, address, name) and columns whose values look personal are removed on the server.
+- **Who sees what.** `"groups": ["Finance"]` limits a dataset to members of those user groups (admins see all).
+- **Read-only and audited.** Sessions are read-only, row counts are capped (`maxRows`), every read lands in `audit_log`.
+- **Access from the claude.ai page.** List the page's origin in `allowedOrigins`. A user opens `/token.html`,
+  creates a 12-hour access key and pastes it into 4kaDash (Databáza → Prihlásiť sa). The key works only for `GET /api/data/*`.
+
+Try it with the demo warehouse:
+
+```bash
+npm run seed:warehouse                                   # creates data/warehouse.db
+DATA_SOURCES=config/data-sources.example.json npm start
+```
+
+Drivers for PostgreSQL (`pg`), MS SQL (`mssql`) and MySQL (`mysql2`) load on first use; install the one you need
+(`npm install pg`). SQLite (built into Node) and CSV work without extra packages.
+
 ## Project layout
 
 ```

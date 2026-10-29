@@ -1,0 +1,37 @@
+{
+  "allowedOrigins": ["https://claude.ai"],
+  "sources": [
+    {
+      "id": "demo",
+      "name": "Ukážkový sklad dát (SQLite)",
+      "driver": "sqlite",
+      "connection": { "file": "../data/warehouse.db" },
+      "datasets": [
+        {
+          "id": "renewals",
+          "name": "Predĺženia zmlúv podľa mesiaca, kanála a tarify",
+          "description": "Mesačné počty končiacich a predĺžených zmlúv a mesačný poplatok.",
+          "sql": "SELECT mesiac, kanal AS \"kanál\", tarifa, region AS \"región\", koncace AS \"končiace zmluvy\", predlzenia AS \"predĺženia\", poplatok AS \"mesačný poplatok\", email_zakaznika FROM renewals WHERE (:from IS NULL OR mesiac >= :from) AND (:to IS NULL OR mesiac <= :to)",
+          "periodColumn": "mesiac",
+          "maxRows": 50000,
+          "piiColumns": ["email_zakaznika"]
+        }
+      ]
+    },
+    {
+      "id": "dwh",
+      "name": "Firemný DWH (PostgreSQL)",
+      "driver": "postgres",
+      "connection": { "env": "DWH_URL" },
+      "datasets": [
+        {
+          "id": "sales",
+          "name": "Predaj podľa kanála",
+          "sql": "SELECT to_char(date_trunc('month', sold_at), 'YYYY-MM') AS mesiac, channel AS kanal, product, sum(price)::numeric AS trzby, count(*) AS pocet FROM mart.sales WHERE (:from::text IS NULL OR sold_at >= to_date(:from, 'YYYY-MM')) GROUP BY 1, 2, 3",
+          "groups": ["Sales"],
+          "maxRows": 100000
+        }
+      ]
+    }
+  ]
+}

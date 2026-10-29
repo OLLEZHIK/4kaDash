@@ -197,3 +197,9 @@ tr.inactive { opacity: 0.55; }
   .view { padding: 1rem; }
   .results { grid-template-columns: 1fr; }
 }
+
+/* Access key page for the data gateway */
+.token-page { max-width: 560px; margin: 64px auto; padding: 0 16px; display: grid; gap: 14px; }
+.token-page #result { display: grid; gap: 8px; }
+.token-page #result[hidden] { display: none; }
+.token-page input { font-family: ui-monospace, monospace; font-size: 0.85rem; padding: 8px; }

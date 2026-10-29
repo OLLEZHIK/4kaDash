@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prístupový kľúč</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="token-page">
+    <h1>Prístupový kľúč do databázy</h1>
+    <p>Kľúč umožní stránke 4kaDash čítať dáta, ku ktorým máte prístup. Platí 12 hodín.</p>
+    <button type="button" id="get">Vytvoriť kľúč</button>
+    <div id="result" hidden>
+      <input id="key" readonly aria-label="Prístupový kľúč">
+      <button type="button" id="copy">Kopírovať</button>
+      <p>Vložte ho v 4kaDash: Pridať report → Databáza → Prihlásiť sa.</p>
+    </div>
+    <p id="msg" role="status"></p>
+  </main>
+  <script src="/token.js"></script>
+</body>
+</html>

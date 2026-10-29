@@ -7,6 +7,7 @@ const auth = require('./auth');
 const { HttpError, Router, readJson, sendJson, parseCookies, serveStatic, unauthorized, forbidden } = require('./http');
 const scheduler = require('./scheduler');
 const quality = require('./quality');
+const { loadConfig, createGateway } = require('./datasources');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -22,11 +23,13 @@ function createApp(options = {}) {
     dbFile: options.dbFile ?? process.env.DB_FILE ?? path.join(__dirname, '..', 'data', 'dash.db'),
     baseUrl: options.baseUrl ?? process.env.BASE_URL ?? 'http://localhost:3000',
     secureCookies: options.secureCookies ?? process.env.SECURE_COOKIES === '1',
+    dataSourcesFile: options.dataSourcesFile ?? process.env.DATA_SOURCES ?? path.join(__dirname, '..', 'config', 'data-sources.json'),
   };
   const db = options.db ?? openDatabase(config.dbFile);
   const router = new Router();
-  const ctx = { db, config };
-  for (const mod of ['auth', 'dashboards', 'workspace', 'admin', 'schedules', 'quality']) {
+  const gateway = options.gateway ?? createGateway(loadConfig(config.dataSourcesFile));
+  const ctx = { db, config, gateway };
+  for (const mod of ['auth', 'dashboards', 'workspace', 'admin', 'schedules', 'quality', 'data']) {
     require(`./routes/${mod}`).register(router, ctx);
   }
 
@@ -37,6 +40,17 @@ function createApp(options = {}) {
     if (!url.pathname.startsWith('/api/')) {
       if ((req.method === 'GET' || req.method === 'HEAD') && serveStatic(PUBLIC_DIR, url.pathname, res)) return;
       return sendJson(res, 404, { error: 'Not found' });
+    }
+
+    // The data gateway may be called from allowed origins (e.g. the 4kaDash page on claude.ai).
+    const isData = url.pathname.startsWith('/api/data/');
+    const origin = req.headers.origin;
+    if (isData && origin && gateway.config.allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Vary', 'Origin');
+      if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
     }
 
     const found = router.match(req.method, url.pathname);
@@ -50,7 +64,9 @@ function createApp(options = {}) {
         if (origin.host !== req.headers.host) throw forbidden('Cross-origin request rejected');
       }
       const token = parseCookies(req.headers.cookie)[auth.SESSION_COOKIE];
-      const user = auth.userForToken(db, token);
+      // A bearer token is accepted only for reading data, never for other endpoints.
+      const bearer = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || '')?.[1];
+      const user = auth.userForToken(db, token) ?? (isData && req.method === 'GET' ? auth.userForToken(db, bearer) : null);
       if (found.route.auth && !user) throw unauthorized();
       const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ? await readJson(req) : {};
       const result = await found.route.handler({ req, res, db, user, token, params: found.params, query: url.searchParams, body });
